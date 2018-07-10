@@ -65,6 +65,8 @@ class SteemClient(object):
                 print('post does not exist exception... moving on')
             except Exception as e:
                 print(e)
+                print('encountered exception, sleeping 30s')
+                time.sleep(30)
 
     def comment_on_post(self, post, comment):
         post.reply(author=self.account, body=comment, title=self.account)
