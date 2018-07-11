@@ -131,7 +131,7 @@ class PostSentiment(object):
         self.sid = SentimentIntensityAnalyzer()
         self.post = post
         self.neg_thresh = -0.03
-        self.pos_thresh = 0.19
+        self.pos_thresh = 0.15
 
     @property
     def tokens(self):
