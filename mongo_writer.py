@@ -130,6 +130,8 @@ class PostSentiment(object):
     def __init__(self, post):
         self.sid = SentimentIntensityAnalyzer()
         self.post = post
+        self.neg_thresh = -0.03
+        self.pos_thresh = 0.19
 
     @property
     def tokens(self):
@@ -201,10 +203,7 @@ class PostSentiment(object):
             'sentiment of {}\n\n'.format(
                 self.overall_polarity['neg'],
                 self.overall_polarity['pos'],
-                round(
-                    sum(self.normalized_polarities) / len(self.normalized_polarities),
-                    2
-                )
+                str(self.avg_normalized_polarity),
             )
         )
 
@@ -213,23 +212,41 @@ class PostSentiment(object):
         return (
             'Thanks for the post, {post_author}.\n\n'
             'I hope you don\'t mind if I test out some sentiment analysis on '
-            'your post.  This is an experimental bot running on a small % of '
-            'posts, and if reaction is positive I\'ll increase that ratio and '
-            'add features.\n\n'.format(
+            'your post.  This is an experimental bot running on posts that '
+            'have exceptional positivity or negativity. The goal is to iterate '
+            'towards a bot that gives content creators and curators actionable '
+            'and useful information.\n\n'.format(
                 post_author=self.post.author
             )
         )
 
     @property
+    def reason_for_posting(self):
+        return (
+            'Your post was selected because it is in the 99th percentile '
+            'for {}.'.format(
+                'positivity' if self.is_pos_outlier else 'negativity'
+            )
+        )
+
+    @property
     def description(self):
-        if self.overall_polarity['neg'] or self.overall_polarity['pos']:
-            return '{}{}{}{}'.format(
+        if self.is_pos_outlier or self.is_neg_outlier:
+            return '{}{}{}{}{}'.format(
                 self.intro,
+                self.reason_for_posting,
                 self.overall_polarity_description,
                 self.positive_polarity_description,
                 self.negative_polarity_description,
             )
         return ''
+
+    @property
+    def avg_normalized_polarity(self):
+        return round(
+            sum(self.normalized_polarities) / len(self.normalized_polarities),
+            2
+        )
 
     def get_max_polarity(self, pole='neg'):
         polarity_values = [polarity[pole] for polarity in self.polarities]
@@ -240,11 +257,17 @@ class PostSentiment(object):
         return ','.join([
             str(max(self.normalized_polarities)),
             str(min(self.normalized_polarities)),
-            str(round(
-                sum(self.normalized_polarities) / len(self.normalized_polarities),
-                2
-            )),
         ]) + '\n'
+
+    @property
+    def is_neg_outlier(self):
+        return self.avg_normalized_polarity < self.neg_thresh
+
+    @property
+    def is_pos_outlier(self):
+        return self.avg_normalized_polarity > self.pos_thresh
+
+
 
 
 class PostMiner(object):
@@ -284,27 +307,27 @@ class PostMiner(object):
         return target_query
 
 class SteemSentimentCommenter(object):
-    def __init__(self, post_percent=.02, article_word_count=500):
+    def __init__(self, article_word_count=500):
         self.steem_client = SteemClient()
-        self.post_percent = post_percent
         self.article_word_count = 500
 
     def run(self):
         for post in self.steem_client.stream_fresh_posts():
             if len(post.body.split(' ')) > self.article_word_count:
                 with open('post_sentiment.csv', 'a+') as fh:
-                    sent = PostSentiment(post)
-                    fh.write(sent.to_csv)
+                    sentiment = PostSentiment(post)
+                    fh.write(sentiment.to_csv)
 
-                if random.random() < self.post_percent:
-                    self.comment(post)
+                self.comment(sentiment)
 
-    def comment(self, post):
-        post_sentiment = PostSentiment(post)
+    def comment(self, post_sentiment):
         try:
             if post_sentiment.description:
-                self.steem_client.comment_on_post(post, post_sentiment.description)
-                print('https://steemit.com{}'.format(post.url))
+                self.steem_client.comment_on_post(
+                    post_sentiment.post,
+                    post_sentiment.description,
+                )
+                print('https://steemit.com{}'.format(post_sentiment.post.url))
                 print(post_sentiment.description)
         except Exception as e:
             print(e)
