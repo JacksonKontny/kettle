@@ -17,7 +17,8 @@ config.read('config.ini')
 POSTING_KEY = config['steem']['posting_key']
 ACCOUNT = config['steem']['account']
 POST_CATEGORIES = set([
-    'steemit', 'bitcoin', 'introduceyourself', 'cryptocurrency', 'steem',
+    'altcoin', 'bitshares', 'btc', 'business', 'crypto-news', 'curation',
+    'esteem', 'happy', 'steemit', 'bitcoin', 'introduceyourself', 'cryptocurrency', 'steem',
     'blog', 'funny', 'news', 'dlive', 'dtube', 'dmania', 'crypto', 'money',
     'blockchain', 'technology', 'science', 'sports'
 ])
@@ -77,7 +78,6 @@ class SteemClient(object):
             except Exception as e:
                 print(e)
                 stream = self.steem.stream_comments()
-            import ipdb; ipdb.set_trace()
 
     def comment_on_post(self, post, comment):
         post.reply(author=self.account, body=comment, title=self.account)
@@ -196,10 +196,12 @@ class PostSentiment(object):
     @property
     def overall_polarity_description(self):
         return (
-            'Your post had an average negative sentiment of -{} '
-            'and an average positive sentiment of {}\n\n'.format(
+            'Your post had an average negative sentiment of -{}, '
+            'an average positive sentiment of {}, and an average normalized '
+            'sentiment of {}\n\n'.format(
                 self.overall_polarity['neg'],
                 self.overall_polarity['pos'],
+                sum(self.normalized_polarities) / len(self.normalized_polarities)
             )
         )
 
@@ -229,6 +231,17 @@ class PostSentiment(object):
     def get_max_polarity(self, pole='neg'):
         polarity_values = [polarity[pole] for polarity in self.polarities]
         return max(polarity_values)
+
+    @property
+    def to_csv(self):
+        return ','.join([
+            str(max(self.normalized_polarities)),
+            str(min(self.normalized_polarities)),
+            round(
+                str(sum(self.normalized_polarities) / len(self.normalized_polarities)),
+                2
+            ),
+        ]) + '\n'
 
 
 class PostMiner(object):
@@ -276,6 +289,10 @@ class SteemSentimentCommenter(object):
     def run(self):
         for post in self.steem_client.stream_fresh_posts():
             if len(post.body.split(' ')) > self.article_word_count:
+                with open('post_sentiment.csv', 'a+') as fh:
+                    sent = PostSentiment(post)
+                    fh.write(sent.to_csv)
+
                 if random.random() < self.post_percent:
                     self.comment(post)
 
