@@ -16,6 +16,11 @@ config = configparser.ConfigParser()
 config.read('config.ini')
 POSTING_KEY = config['steem']['posting_key']
 ACCOUNT = config['steem']['account']
+POST_CATEGORIES = set([
+    'steemit', 'bitcoin', 'introduceyourself', 'cryptocurrency', 'steem',
+    'blog', 'funny', 'news', 'dlive', 'dtube', 'dmania', 'crypto', 'money',
+    'blockchain', 'technology', 'science', 'sports'
+])
 
 
 def convert_post_datetime(post_datetime_str):
@@ -54,12 +59,12 @@ class SteemClient(object):
             try:
                 post = next(stream)
                 if (
-                        (not is_main or post.is_main_post()) and
-                        (not allow_votes or post.allow_votes) and
-                        post.time_elapsed() < datetime.timedelta(
+                        (not is_main or post.is_main_post())
+                        and (not allow_votes or post.allow_votes)
+                        and post.time_elapsed() < datetime.timedelta(
                             minutes=expiration_minutes
                         ) and langdetect.detect(post.body) == 'en'
-
+                        and post.category in POST_CATEGORIES
                 ):
                     yield post
             except PostDoesNotExist as exception:
