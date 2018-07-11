@@ -237,10 +237,10 @@ class PostSentiment(object):
         return ','.join([
             str(max(self.normalized_polarities)),
             str(min(self.normalized_polarities)),
-            round(
+            str(round(
                 str(sum(self.normalized_polarities) / len(self.normalized_polarities)),
                 2
-            ),
+            )),
         ]) + '\n'
 
 
