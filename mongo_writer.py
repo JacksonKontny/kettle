@@ -257,6 +257,7 @@ class PostSentiment(object):
         return ','.join([
             str(max(self.normalized_polarities)),
             str(min(self.normalized_polarities)),
+            str(self.avg_normalized_polarity),
         ]) + '\n'
 
     @property
