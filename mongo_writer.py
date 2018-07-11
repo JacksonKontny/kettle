@@ -238,7 +238,7 @@ class PostSentiment(object):
             str(max(self.normalized_polarities)),
             str(min(self.normalized_polarities)),
             str(round(
-                sum(self.normalized_polarities) / len(self.normalized_polarities)
+                sum(self.normalized_polarities) / len(self.normalized_polarities),
                 2
             )),
         ]) + '\n'
