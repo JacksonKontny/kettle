@@ -5,6 +5,7 @@ import random
 import time
 
 import langdetect
+from langdetect.exception import LangDetectException
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from nltk import tokenize
 from pymongo import MongoClient
@@ -63,6 +64,11 @@ class SteemClient(object):
                     yield post
             except PostDoesNotExist as exception:
                 print('post does not exist exception... moving on')
+            except LangDetectException as exception:
+                try:
+                    print('language in post not understood:\n\n{}'.format(post.body))
+                except:
+                    print('couldnt even print out post body')
             except Exception as e:
                 print(e)
                 stream = self.steem.stream_comments()
