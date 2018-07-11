@@ -281,7 +281,7 @@ class PostMiner(object):
         return target_query
 
 class SteemSentimentCommenter(object):
-    def __init__(self, post_percent=1, article_word_count=500):
+    def __init__(self, post_percent=.02, article_word_count=500):
         self.steem_client = SteemClient()
         self.post_percent = post_percent
         self.article_word_count = 500
