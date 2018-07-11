@@ -201,7 +201,10 @@ class PostSentiment(object):
             'sentiment of {}\n\n'.format(
                 self.overall_polarity['neg'],
                 self.overall_polarity['pos'],
-                sum(self.normalized_polarities) / len(self.normalized_polarities)
+                round(
+                    sum(self.normalized_polarities) / len(self.normalized_polarities),
+                    2
+                )
             )
         )
 
