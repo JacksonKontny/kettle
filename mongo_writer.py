@@ -5,7 +5,7 @@ import random
 import time
 
 import langdetect
-from langdetect.exception import LangDetectException
+from langdetect.lang_detect_exception import LangDetectException
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from nltk import tokenize
 from pymongo import MongoClient
@@ -72,6 +72,7 @@ class SteemClient(object):
             except Exception as e:
                 print(e)
                 stream = self.steem.stream_comments()
+            import ipdb; ipdb.set_trace()
 
     def comment_on_post(self, post, comment):
         post.reply(author=self.account, body=comment, title=self.account)
@@ -137,69 +138,65 @@ class PostSentiment(object):
         return polarities
 
     @property
-    def max_pos_polarity(self):
-        return self.get_max_polarity(pole='pos')
-
-    @property
-    def max_neg_polarity(self):
-        return self.get_max_polarity(pole='neg')
+    def normalized_polarities(self):
+        return [pol['pos'] - pol['neg'] for pol in self.polarities]
 
     @property
     def neg_polarity_sentence(self):
         return self.tokens[
-            [polarity['neg'] for polarity in self.polarities].index(self.max_neg_polarity)
+            self.normalized_polarities.index(min(self.normalized_polarities))
         ]
 
     @property
     def pos_polarity_sentence(self):
         return self.tokens[
-            [polarity['pos'] for polarity in self.polarities].index(self.max_pos_polarity)
+            self.normalized_polarities.index(max(self.normalized_polarities))
         ]
 
     @property
     def overall_polarity(self):
-        return self.sid.polarity_scores(self.post.body)
-
-    @property
-    def overall_neg_polarity(self):
-        return self.overall_polarity['neg']
-
-    @property
-    def overall_pos_polarity(self):
-        return self.overall_polarity['pos']
+        overall_polarity = {}
+        for key in ['pos', 'neg', 'neu', 'compound']:
+            average = round(
+                sum([pol[key] for pol in self.polarities]) / len(self.polarities),
+                3
+            )
+            overall_polarity[key] = average
+        return overall_polarity
 
     @property
     def negative_polarity_description(self):
-        if self.max_neg_polarity > 0:
+        if min(self.normalized_polarities) < 0:
             return (
-                'The most negative sentence in your post had a negativity '
-                'score of {}:\n\n"{}"\n\n'.format(
-                    self.max_neg_polarity,
+                'The most negative sentence in your post had a normalized '
+                'negativity score of {}:\n\n"{}"\n\n'.format(
+                    min(self.normalized_polarities),
                     self.neg_polarity_sentence
                 )
             )
+        return ''
 
     @property
     def positive_polarity_description(self):
-        if self.max_pos_polarity > 0:
+        if max(self.normalized_polarities) > 0:
             return (
-                'The most positive sentence in your post had a positivity '
-                'score of {}:\n\n"{}"\n\n'.format(
-                    self.max_pos_polarity,
+                'The most positive sentence in your post had a normalized '
+                'positivity score of {}:\n\n"{}"\n\n'.format(
+                    max(self.normalized_polarities),
                     self.pos_polarity_sentence
                 )
             )
+        return ''
 
     @property
     def overall_polarity_description(self):
-        if self.overall_pos_polarity or self.overall_neg_polarity:
-            return (
-                'Your post had an average negative sentiment of {} '
-                'and an average positive sentiment of {}\n\n'.format(
-                    self.overall_neg_polarity,
-                    self.overall_pos_polarity,
-                )
+        return (
+            'Your post had an average negative sentiment of -{} '
+            'and an average positive sentiment of {}\n\n'.format(
+                self.overall_polarity['neg'],
+                self.overall_polarity['pos'],
             )
+        )
 
     @property
     def intro(self):
@@ -215,12 +212,14 @@ class PostSentiment(object):
 
     @property
     def description(self):
-        return '{}{}{}{}'.format(
-            self.intro,
-            self.overall_polarity_description,
-            self.positive_polarity_description,
-            self.negative_polarity_description,
-        )
+        if self.overall_polarity['neg'] or self.overall_polarity['pos']:
+            return '{}{}{}{}'.format(
+                self.intro,
+                self.overall_polarity_description,
+                self.positive_polarity_description,
+                self.negative_polarity_description,
+            )
+        return ''
 
     def get_max_polarity(self, pole='neg'):
         polarity_values = [polarity[pole] for polarity in self.polarities]
@@ -264,7 +263,7 @@ class PostMiner(object):
         return target_query
 
 class SteemSentimentCommenter(object):
-    def __init__(self, post_percent=.01, article_word_count=500):
+    def __init__(self, post_percent=1, article_word_count=500):
         self.steem_client = SteemClient()
         self.post_percent = post_percent
         self.article_word_count = 500
