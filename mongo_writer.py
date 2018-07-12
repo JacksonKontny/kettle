@@ -269,8 +269,6 @@ class PostSentiment(object):
         return self.avg_normalized_polarity >= self.pos_thresh
 
 
-
-
 class PostMiner(object):
 
     def __init__(self, category=None, expiration_minutes=60, sleep_time=60):
