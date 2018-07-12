@@ -131,7 +131,7 @@ class PostSentiment(object):
         self.sid = SentimentIntensityAnalyzer()
         self.post = post
         self.neg_thresh = -0.03
-        self.pos_thresh = 0.15
+        self.pos_thresh = 0.16
 
     @property
     def tokens(self):
@@ -262,11 +262,11 @@ class PostSentiment(object):
 
     @property
     def is_neg_outlier(self):
-        return self.avg_normalized_polarity < self.neg_thresh
+        return self.avg_normalized_polarity <= self.neg_thresh
 
     @property
     def is_pos_outlier(self):
-        return self.avg_normalized_polarity > self.pos_thresh
+        return self.avg_normalized_polarity >= self.pos_thresh
 
 
 
