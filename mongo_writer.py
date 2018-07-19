@@ -215,7 +215,9 @@ class PostSentiment(object):
             'Thanks for the post, {post_author}.\n\n'
             'I hope you don\'t mind that I\'m testing my bot on your post. '
             'My bot runs through hundreds of posts per day selecting a small '
-            'percentage of posts that have exceptional positivity.\n\n'
+            'percentage of posts that have exceptional positivity.\n\n'.format(
+                post_author=self.post.author
+            )
         )
 
     @property
@@ -228,7 +230,7 @@ class PostSentiment(object):
 
     @property
     def description(self):
-        if self.is_pos_outlier or self.is_neg_outlier:
+        if self.is_pos_outlier:
             return '{}{}'.format(
                 self.intro,
                 self.reason_for_posting,
