@@ -80,8 +80,18 @@ class SteemClient(object):
                 stream = self.steem.stream_comments()
 
     def comment_on_post(self, post, comment):
-        post.reply(author=self.account, body=comment, title=self.account)
-        time.sleep(20)
+        try:
+            post.reply(author=self.account, body=comment, title=self.account)
+            time.sleep(20)
+        except Exception as e:
+            print(e)
+
+    def upvote_post(self, post):
+        try:
+            post.upvote(voter=self.account)
+        except Exception as e:
+            print(e)
+
 
 class MongoSteem(object):
 
@@ -230,12 +240,10 @@ class PostSentiment(object):
 
     @property
     def description(self):
-        if self.is_pos_outlier:
-            return '{}{}'.format(
-                self.intro,
-                self.reason_for_posting,
-            )
-        return ''
+        return '{}{}'.format(
+            self.intro,
+            self.reason_for_posting,
+        )
 
     @property
     def avg_normalized_polarity(self):
@@ -309,23 +317,23 @@ class SteemSentimentCommenter(object):
     def run(self):
         for post in self.steem_client.stream_fresh_posts():
             if len(post.body.split(' ')) > self.article_word_count:
-                with open('post_sentiment.csv', 'a+') as fh:
-                    sentiment = PostSentiment(post)
-                    fh.write(sentiment.to_csv)
+                sentiment = PostSentiment(post)
+                self.save_sentiment_to_file(sentiment)
+                self.handle_interaction_with_content_provider(sentiment)
 
-                self.comment(sentiment)
+    def save_sentiment_to_file(self, sentiment):
+        with open('post_sentiment.csv', 'a+') as fh:
+            fh.write(sentiment.to_csv)
 
-    def comment(self, post_sentiment):
-        try:
-            if post_sentiment.description:
-                self.steem_client.comment_on_post(
-                    post_sentiment.post,
-                    post_sentiment.description,
-                )
-                print('https://steemit.com{}'.format(post_sentiment.post.url))
-                print(post_sentiment.description)
-        except Exception as e:
-            print(e)
+    def handle_interaction_with_content_provider(self, post_sentiment):
+        if post_sentiment.is_pos_outlier:
+            self.steem_client.comment_on_post(
+                post_sentiment.post,
+                post_sentiment.description,
+            )
+            self.steem_client.upvote_post(post_sentiment.post)
+            print('https://steemit.com{}'.format(post_sentiment.post.url))
+            print(post_sentiment.description)
 
 
 class SteemVoter(object):
