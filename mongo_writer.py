@@ -65,7 +65,7 @@ class SteemClient(object):
                         and post.time_elapsed() < datetime.timedelta(
                             minutes=expiration_minutes
                         ) and langdetect.detect(post.body) == 'en'
-                        and post.category in POST_CATEGORIES
+                        # and post.category in POST_CATEGORIES
                 ):
                     yield post
             except PostDoesNotExist as exception:
@@ -130,8 +130,10 @@ class PostSentiment(object):
     def __init__(self, post):
         self.sid = SentimentIntensityAnalyzer()
         self.post = post
-        self.neg_thresh = -0.03
-        self.pos_thresh = 0.16
+        self.neg_thresh_99 = -0.05
+        self.pos_thresh_99 = 0.18
+        self.neg_thresh_95 = -0.01
+        self.pos_thresh_95 = 0.14
 
     @property
     def tokens(self):
@@ -211,33 +213,25 @@ class PostSentiment(object):
     def intro(self):
         return (
             'Thanks for the post, {post_author}.\n\n'
-            'I hope you don\'t mind if I test out some sentiment analysis on '
-            'your post.  This is an experimental bot running on posts that '
-            'have exceptional positivity or negativity. The goal is to iterate '
-            'towards a bot that gives content creators and curators actionable '
-            'and useful information.\n\n'.format(
-                post_author=self.post.author
-            )
+            'I hope you don\'t mind that I\'m testing my bot on your post. '
+            'My bot runs through hundreds of posts per day selecting a small '
+            'percentage of posts that have exceptional positivity.\n\n'
         )
 
     @property
     def reason_for_posting(self):
         return (
-            'Your post was selected because it is in the 99th percentile '
-            'for {}.'.format(
-                'positivity' if self.is_pos_outlier else 'negativity'
-            )
+            'Your post was selected because it has a high concentration of words '
+            'that give feel-good vibes.  My bot and I would like to thank you '
+            'for creating content that focuses on the bright side.\n\n'
         )
 
     @property
     def description(self):
         if self.is_pos_outlier or self.is_neg_outlier:
-            return '{}{}{}{}{}'.format(
+            return '{}{}'.format(
                 self.intro,
                 self.reason_for_posting,
-                self.overall_polarity_description,
-                self.positive_polarity_description,
-                self.negative_polarity_description,
             )
         return ''
 
@@ -262,11 +256,11 @@ class PostSentiment(object):
 
     @property
     def is_neg_outlier(self):
-        return self.avg_normalized_polarity <= self.neg_thresh
+        return self.avg_normalized_polarity <= self.neg_thresh_99
 
     @property
     def is_pos_outlier(self):
-        return self.avg_normalized_polarity >= self.pos_thresh
+        return self.avg_normalized_polarity >= self.pos_thresh_99
 
 
 class PostMiner(object):
