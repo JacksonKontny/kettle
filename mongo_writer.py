@@ -87,6 +87,7 @@ class SteemClient(object):
             print(e)
 
     def upvote_post(self, post):
+        time.sleep(60 * 30)
         try:
             post.upvote(voter=self.account)
         except Exception as e:
@@ -223,8 +224,7 @@ class PostSentiment(object):
     def intro(self):
         return (
             'Thanks for the post, {post_author}.\n\n'
-            'I hope you don\'t mind that I\'m testing my bot on your post. '
-            'My bot runs through hundreds of posts per day selecting a small '
+            'This bot runs through hundreds of posts per day selecting a small '
             'percentage of posts that have exceptional positivity.\n\n'.format(
                 post_author=self.post.author
             )
@@ -233,9 +233,12 @@ class PostSentiment(object):
     @property
     def reason_for_posting(self):
         return (
-            'Your post was selected because it has a high concentration of words '
-            'that give feel-good vibes.  My bot and I would like to thank you '
-            'for creating content that focuses on the bright side.\n\n'
+            'Your post has been selected and upvoted because it has a high '
+            'concentration of positive words that give feel-good vibes. '
+            'My bot and I would like to thank you for creating content that '
+            'focuses on the bright side.\n\n'
+            'In the future your post will be included in a curated list posted '
+            'at the end of the day that includes positive content\n\n'
         )
 
     @property
@@ -327,11 +330,11 @@ class SteemSentimentCommenter(object):
 
     def handle_interaction_with_content_provider(self, post_sentiment):
         if post_sentiment.is_pos_outlier:
+            self.steem_client.upvote_post(post_sentiment.post)
             self.steem_client.comment_on_post(
                 post_sentiment.post,
                 post_sentiment.description,
             )
-            self.steem_client.upvote_post(post_sentiment.post)
             print('https://steemit.com{}'.format(post_sentiment.post.url))
             print(post_sentiment.description)
 
