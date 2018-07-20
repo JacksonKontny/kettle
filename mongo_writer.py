@@ -93,6 +93,13 @@ class SteemClient(object):
         except Exception as e:
             print(e)
 
+    def write_post(self, title, body, tags):
+        self.steem.commit.post(
+            author=self.account,
+            body=body,
+            tags=tags,
+        )
+
 
 class MongoSteem(object):
 
@@ -142,7 +149,7 @@ class PostSentiment(object):
         self.sid = SentimentIntensityAnalyzer()
         self.post = post
         self.neg_thresh_99 = -0.05
-        self.pos_thresh_99 = 0.18
+        self.pos_thresh_99 = 0.24
         self.neg_thresh_95 = -0.01
         self.pos_thresh_95 = 0.14
 
@@ -316,6 +323,7 @@ class SteemSentimentCommenter(object):
     def __init__(self, article_word_count=500):
         self.steem_client = SteemClient()
         self.article_word_count = 500
+        self.post_list = []
 
     def run(self):
         for post in self.steem_client.stream_fresh_posts():
@@ -323,6 +331,8 @@ class SteemSentimentCommenter(object):
                 sentiment = PostSentiment(post)
                 self.save_sentiment_to_file(sentiment)
                 self.handle_interaction_with_content_provider(sentiment)
+            if len(self.post_list) == 9:
+                self.write_positive_article_post()
 
     def save_sentiment_to_file(self, sentiment):
         with open('post_sentiment.csv', 'a+') as fh:
@@ -335,8 +345,28 @@ class SteemSentimentCommenter(object):
                 post_sentiment.post,
                 post_sentiment.description,
             )
-            print('https://steemit.com{}'.format(post_sentiment.post.url))
+            self.post_list.append(self.get_steemit_url(post_sentiment.post))
+            print(self.get_steemit_url())
             print(post_sentiment.description)
+
+    def get_steemit_url(self, post):
+        return 'https://steemit.com{}'.format(post.url)
+
+    def write_positive_article_post(self):
+        title = 'Top positive articles of the day - {}'.format(str(datetime.date.today()))
+        intro = (
+            "Below are the top uplifting posts of the day.  These posts have "
+            "been selected due to their overwhelming positive word choice. The "
+            "articles listed have more positive words than 99.5% of articles "
+            "posted in english on the steemit platform.  Go ahead and give these "
+            "articles a read and see if they can help inspire you and improve "
+            "your day:\n\n"
+        )
+        links = '\n\n'.join(self.post_list)
+        self.post_list = []
+        body = '{}{}'.format(intro, links)
+        tags = ['happiness', 'positivity', 'motivation']
+        self.steem_client.write_post(title, body, tags)
 
 
 class SteemVoter(object):
