@@ -346,7 +346,7 @@ class SteemSentimentCommenter(object):
                 post_sentiment.description,
             )
             self.post_list.append(self.get_steemit_url(post_sentiment.post))
-            print(self.get_steemit_url())
+            print(self.get_steemit_url(post_sentiment.post))
             print(post_sentiment.description)
 
     def get_steemit_url(self, post):
