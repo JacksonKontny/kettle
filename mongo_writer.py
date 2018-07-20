@@ -359,13 +359,13 @@ class SteemSentimentCommenter(object):
             "been selected due to their overwhelming positive word choice. The "
             "articles listed have more positive words than 99.5% of articles "
             "posted in english on the steemit platform.  Go ahead and give these "
-            "articles a read and see if they can help inspire you and improve "
+            "articles a read and see if they can improve your life, inspire you and improve "
             "your day:\n\n"
         )
         links = '\n\n'.join(self.post_list)
         self.post_list = []
         body = '{}{}'.format(intro, links)
-        tags = ['happiness', 'positivity', 'motivation']
+        tags = ['life', 'motivation', 'inspiration', 'happy', 'good-karma']
         self.steem_client.write_post(title, body, tags)
 
 
