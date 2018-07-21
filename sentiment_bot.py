@@ -155,6 +155,9 @@ class MongoSteem(object):
         for post in self.stream_posts_from_mongo(query=query):
             self.update_post(post)
 
+    def is_post_new(self, post):
+        return bool(self.collection.find_one({'id': post.id}, {'_id': 1}))
+
 
 class PostSentiment(object):
     def __init__(self, post):
@@ -348,7 +351,10 @@ class SteemSentimentCommenter(object):
 
     def run(self):
         for post in self.steem_client.stream_fresh_posts():
-            if len(post.body.split(' ')) > self.article_word_count:
+            if (
+                len(post.body.split(' ')) > self.article_word_count
+                and self.mongo_steem.is_post_new(post)
+            ):
                 sentiment = PostSentiment(post)
                 self.save_sentiment(sentiment)
                 self.handle_interaction_with_content_provider(sentiment)
