@@ -11,6 +11,7 @@ from nltk import tokenize
 from pymongo import MongoClient
 from steembase.exceptions import PostDoesNotExist
 from steem import Steem
+from steem.post import Post
 
 config = configparser.ConfigParser()
 config.read('config.ini')
@@ -109,36 +110,43 @@ class SteemClient(object):
 
 class MongoSteem(object):
 
-    def __init__(self, host_name='mongodb://localhost/test', db_name='test', steem_client=None):
-        if steem_client is None:
-            steem_client = SteemClient()
-        self.steem_client = steem_client
-        mongo_client = MongoClient(host_name)
-        self.db = getattr(mongo_client, db_name)
+    def __init__(self, host='localhost', port='27017', db_name='steem', collection_name='posts'):
+        mongo_client = MongoClient(host, port)
+        db = getattr(mongo_client, db_name)
+        self.collection = getattr(db, collection_name)
 
+    def get_post_data_for_storage(self, post):
+        export = post.export()
+        export['tags'] = list(export['tags'])
+        return export
 
-    def store_post(self, post):
-        self.db.posts.insert_one(post.export())
+    def store_post(self, post, additional_data=None):
+        post_data = self.get_post_data_for_storage(post)
+        if additional_data:
+            post_data.update(additional_data)
+        self.collection.insert_one(post_data)
 
-    def stream_posts_from_mongo(self, query=None, limit=None):
+    def stream_posts_from_mongo(self, query=None, limit=None, raw=False):
         if query is None:
             query = {}
-        post_query = self.db.posts.find(query)
+        post_query = self.collection.find(query)
         if limit:
             post_query = post_query.limit(limit)
         try:
             for post_data in post_query:
-                yield Post(post_data)
+                if raw:
+                    yield post_data
+                else:
+                    yield Post(post_data)
 
         except Exception as e:
             print(e)
 
     def update_post(self, post):
-        post_data = post.__dict__
-        del post_data['steem']
-        self.db.posts.update_one(
+        post.refresh()
+        self.collection.update_one(
             {'identifier': post.identifier},
-            {'$set': post_data}
+            {'$set': self.get_post_data_for_storage(post)}
         )
 
     def update_posts(self, query=None):
@@ -279,6 +287,14 @@ class PostSentiment(object):
         ]) + '\n'
 
     @property
+    def to_mongo(self):
+        return {
+            'polarities': self.polarities,
+            'normalized_polarities': self.normalized_polarities,
+            'overall_polarity': self.overall_polarity,
+        }
+
+    @property
     def is_neg_outlier(self):
         return self.avg_normalized_polarity <= self.neg_thresh_99
 
@@ -328,19 +344,24 @@ class SteemSentimentCommenter(object):
         self.steem_client = SteemClient()
         self.article_word_count = 500
         self.post_list = []
+        self.mongo_steem = MongoSteem()
 
     def run(self):
         for post in self.steem_client.stream_fresh_posts():
             if len(post.body.split(' ')) > self.article_word_count:
                 sentiment = PostSentiment(post)
-                self.save_sentiment_to_file(sentiment)
+                self.save_sentiment(sentiment)
                 self.handle_interaction_with_content_provider(sentiment)
             if datetime.datetime.now().hour == 13 and len(self.post_list) == 9:
                 self.write_positive_article_post()
 
-    def save_sentiment_to_file(self, sentiment):
+    def save_sentiment(self, sentiment):
         with open('post_sentiment.csv', 'a+') as fh:
             fh.write(sentiment.to_csv)
+        self.mongo_steem.store_post(
+            sentiment.post,
+            additional_data=sentiment.to_mongo
+        )
 
     def handle_interaction_with_content_provider(self, post_sentiment):
         if post_sentiment.is_pos_outlier:
