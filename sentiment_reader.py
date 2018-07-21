@@ -15,13 +15,13 @@ with open('post_sentiment.csv', 'r') as fh:
             pass
 
 def get_perc(perc):
+    print(perc)
     print('max perc: ', numpy.percentile(max_s, 100 - perc))
     print('min perc: ', numpy.percentile(min_s, perc))
     print('max avg perc: ', numpy.percentile(avg_s, 100 - perc))
     print('min avg perc: ', numpy.percentile(avg_s, perc))
     print('\n')
 
-print(avg_s)
 get_perc(.2)
 get_perc(1)
 get_perc(5)

@@ -22,6 +22,7 @@ POST_CATEGORIES = set([
     'blog', 'funny', 'news', 'dlive', 'dtube', 'dmania', 'crypto', 'money',
     'blockchain', 'technology', 'science', 'sports'
 ])
+SPAM_DETECTORS = set(['badcontent'])
 
 
 def convert_post_datetime(post_datetime_str):
@@ -87,7 +88,6 @@ class SteemClient(object):
             print(e)
 
     def upvote_post(self, post):
-        time.sleep(60 * 30)
         try:
             post.upvote(voter=self.account)
         except Exception as e:
@@ -99,6 +99,12 @@ class SteemClient(object):
             body=body,
             tags=tags,
         )
+
+    def is_post_spam(self, post):
+        replies = post.get_replies()
+        for reply in replies:
+            if reply.author in SPAM_DETECTORS:
+                return True
 
 
 class MongoSteem(object):
@@ -340,14 +346,20 @@ class SteemSentimentCommenter(object):
 
     def handle_interaction_with_content_provider(self, post_sentiment):
         if post_sentiment.is_pos_outlier:
-            self.steem_client.upvote_post(post_sentiment.post)
-            self.steem_client.comment_on_post(
-                post_sentiment.post,
-                post_sentiment.description,
-            )
-            self.post_list.append(self.get_steemit_url(post_sentiment.post))
-            print(self.get_steemit_url(post_sentiment.post))
-            print(post_sentiment.description)
+            time.sleep(60 * 30)
+            post_sentiment.post.refresh()
+            if (
+                post_sentiment.post.active_votes >= 3
+                and not self.steem_client.is_post_spam(post_sentiment.post)
+            ):
+                self.steem_client.upvote_post(post_sentiment.post)
+                self.steem_client.comment_on_post(
+                    post_sentiment.post,
+                    post_sentiment.description,
+                )
+                self.post_list.append(self.get_steemit_url(post_sentiment.post))
+                print(self.get_steemit_url(post_sentiment.post))
+                print(post_sentiment.description)
 
     def get_steemit_url(self, post):
         return 'https://steemit.com{}'.format(post.url)
