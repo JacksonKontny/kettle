@@ -337,7 +337,7 @@ class SteemSentimentCommenter(object):
                 sentiment = PostSentiment(post)
                 self.save_sentiment_to_file(sentiment)
                 self.handle_interaction_with_content_provider(sentiment)
-            if len(self.post_list) == 9:
+            if datetime.datetime.now().hour == 13 and len(self.post_list) == 9:
                 self.write_positive_article_post()
 
     def save_sentiment_to_file(self, sentiment):
