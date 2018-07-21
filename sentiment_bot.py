@@ -118,9 +118,7 @@ class MongoSteem(object):
 
 
     def store_post(self, post):
-        post_data = post.__dict__
-        del post_data['steem']
-        self.db.posts.insert_one(post_data)
+        self.db.posts.insert_one(post.export())
 
     def stream_posts_from_mongo(self, query=None, limit=None):
         if query is None:
@@ -130,7 +128,7 @@ class MongoSteem(object):
             post_query = post_query.limit(limit)
         try:
             for post_data in post_query:
-                yield Post(post_data['identifier'], steem_instance=self.steem_client.steem)
+                yield Post(post_data)
 
         except Exception as e:
             print(e)
@@ -349,7 +347,7 @@ class SteemSentimentCommenter(object):
             time.sleep(60 * 30)
             post_sentiment.post.refresh()
             if (
-                post_sentiment.post.active_votes >= 3
+                post_sentiment.post.net_votes >= 3
                 and not self.steem_client.is_post_spam(post_sentiment.post)
             ):
                 self.steem_client.upvote_post(post_sentiment.post)
