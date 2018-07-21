@@ -155,7 +155,7 @@ class PostSentiment(object):
         self.sid = SentimentIntensityAnalyzer()
         self.post = post
         self.neg_thresh_99 = -0.05
-        self.pos_thresh_99 = 0.24
+        self.pos_thresh_99 = 0.20
         self.neg_thresh_95 = -0.01
         self.pos_thresh_95 = 0.14
 
