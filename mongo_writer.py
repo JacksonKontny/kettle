@@ -360,6 +360,7 @@ class SteemSentimentCommenter(object):
                 self.post_list.append(self.get_steemit_url(post_sentiment.post))
                 print(self.get_steemit_url(post_sentiment.post))
                 print(post_sentiment.description)
+                print('posts in list: {}'.format(len(self.post_list)))
 
     def get_steemit_url(self, post):
         return 'https://steemit.com{}'.format(post.url)
