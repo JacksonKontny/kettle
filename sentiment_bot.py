@@ -110,7 +110,7 @@ class SteemClient(object):
 
 class MongoSteem(object):
 
-    def __init__(self, host='localhost', port='27017', db_name='steem', collection_name='posts'):
+    def __init__(self, host='localhost', port=27017, db_name='steem', collection_name='posts'):
         mongo_client = MongoClient(host, port)
         db = getattr(mongo_client, db_name)
         self.collection = getattr(db, collection_name)
