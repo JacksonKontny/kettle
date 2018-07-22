@@ -16,8 +16,8 @@ from steem.post import Post
 config = configparser.ConfigParser()
 config.read('config.ini')
 POSTING_KEY = config['steem']['posting_key']
-POSITIVE_THRESHOLD = config['steem']['positive_threshold']
-NEGATIVE_THRESHOLD = config['steem']['negative_threshold']
+POSITIVE_THRESHOLD = float(config['steem']['positive_threshold'])
+NEGATIVE_THRESHOLD = float(config['steem']['negative_threshold'])
 ACCOUNT = config['steem']['account']
 POST_CATEGORIES = set([
     'altcoin', 'bitshares', 'btc', 'business', 'crypto-news', 'curation',
