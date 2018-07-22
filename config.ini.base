@@ -1,3 +1,5 @@
 [steem]
 posting_key=
 account=
+positive_threshold=
+negative_threshold=

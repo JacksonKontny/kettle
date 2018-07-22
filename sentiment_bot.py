@@ -16,6 +16,8 @@ from steem.post import Post
 config = configparser.ConfigParser()
 config.read('config.ini')
 POSTING_KEY = config['steem']['posting_key']
+POSITIVE_THRESHOLD = config['steem']['positive_threshold']
+NEGATIVE_THRESHOLD = config['steem']['negative_threshold']
 ACCOUNT = config['steem']['account']
 POST_CATEGORIES = set([
     'altcoin', 'bitshares', 'btc', 'business', 'crypto-news', 'curation',
@@ -163,10 +165,8 @@ class PostSentiment(object):
     def __init__(self, post):
         self.sid = SentimentIntensityAnalyzer()
         self.post = post
-        self.neg_thresh_99 = -0.05
-        self.pos_thresh_99 = 0.20
-        self.neg_thresh_95 = -0.01
-        self.pos_thresh_95 = 0.14
+        self.negative_threshold = NEGATIVE_THRESHOLD
+        self.positive_threshold = POSITIVE_THRESHOLD
 
     @property
     def tokens(self):
@@ -299,11 +299,11 @@ class PostSentiment(object):
 
     @property
     def is_neg_outlier(self):
-        return self.avg_normalized_polarity <= self.neg_thresh_99
+        return self.avg_normalized_polarity <= self.negative_threshold
 
     @property
     def is_pos_outlier(self):
-        return self.avg_normalized_polarity >= self.pos_thresh_99
+        return self.avg_normalized_polarity >= self.positive_threshold
 
 
 class PostMiner(object):
