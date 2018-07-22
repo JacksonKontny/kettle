@@ -306,42 +306,6 @@ class PostSentiment(object):
         return self.avg_normalized_polarity >= self.positive_threshold
 
 
-class PostMiner(object):
-
-    def __init__(self, category=None, expiration_minutes=60, sleep_time=60):
-        self.category = category
-        self.expiration_minutes = expiration_minutes
-        self.sleep_time = sleep_time
-        self.detected_winners = []
-        self.mongo_steem = MongoSteem()
-
-    def mine_winners(self):
-        while True:
-            winning_post_query = self.get_target_query()
-            winning_post_query.update(vote_count_filter(3))
-            winning_post_query.update({"identifier": {"$nin": self.detected_winners}})
-            winner_query = self.mongo_steem.db.posts.find(
-                winning_post_query, {"identifier": 1}
-            )
-            winners = [winner['identifier'] for winner in winner_query]
-            self.detected_winners.extend(winners)
-            yield winners
-
-            time.sleep(self.sleep_time)
-            self.update_target_posts()
-
-    def update_target_posts(self):
-        update_post_query = self.get_target_query()
-        print('running update query {}'.format(datetime.datetime.now()))
-        self.mongo_steem.update_posts(query=update_post_query)
-
-    def get_target_query(self):
-        target_query = {"category": self.category}
-        target_query.update(datetime_filter(
-            start_time=datetime.datetime.now() - datetime.timedelta(minutes=self.expiration_minutes)
-        ))
-        return target_query
-
 class SteemSentimentCommenter(object):
     def __init__(self, article_word_count=500):
         self.steem_client = SteemClient()
@@ -405,39 +369,6 @@ class SteemSentimentCommenter(object):
         body = '{}{}'.format(intro, links)
         tags = ['life', 'motivation', 'inspiration', 'happy', 'good-karma']
         self.steem_client.write_post(title, body, tags)
-
-
-class SteemVoter(object):
-    def __init__(self, mongo_steem=None, post_miner=None, vote_limit=11, run_hours=24):
-        if not mongo_steem:
-            mongo_steem = MongoSteem()
-        if not post_miner:
-            post_miner = PostMiner()
-        self.mongo_steem = mongo_steem
-        self.post_miner = post_miner
-        self.vote_limit = vote_limit
-        self.upvoted_winners = []
-        self.end_time = datetime.datetime.now() + datetime.timedelta(hours=run_hours)
-
-    def daily_run(self):
-        while not self.post_quota_met:
-            for winner_group in self.post_miner.mine_winners():
-                self.upvote_winners(winner_group)
-
-    def upvote_winners(self, winners):
-        for winner in winners:
-            if len(self.upvoted_winners) < self.vote_limit:
-                winning_post = Post(winner, steem_instance=self.mongo_steem.steem_client.steem)
-                winning_post.upvote(voter=self.mongo_steem.steem_client.voter)
-                self.upvoted_winners.append(winner)
-                print('winning post: {}'.format(winner))
-
-                # cannot post two consecutive votes less than 3 seconds apart
-                time.sleep(3)
-
-    @property
-    def post_quota_met(self):
-        return len(self.upvoted_winners) >= self.vote_limit or datetime.datetime.now() > self.end_time
 
 
 if __name__ == '__main__':
