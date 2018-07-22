@@ -344,11 +344,10 @@ class SteemSentimentCommenter(object):
 
     def handle_interaction_with_content_provider(self, post_sentiment):
         if post_sentiment.is_pos_outlier:
-            time.sleep(60 * 30)
             post_sentiment.post.refresh()
             if (
-                post_sentiment.post.net_votes >= 3
-                and not self.steem_client.is_post_spam(post_sentiment.post)
+                # post_sentiment.post.net_votes >= 3 and
+                not self.steem_client.is_post_spam(post_sentiment.post)
             ):
                 self.steem_client.upvote_post(post_sentiment.post)
                 self.steem_client.comment_on_post(
