@@ -264,10 +264,19 @@ class PostSentiment(object):
         )
 
     @property
+    def vote_comment(self):
+        return (
+            'Please comment \'yes\' or \'no\' if you feel that my bot is '
+            'correct in its judgement of this post.  Your comments will be '
+            'used to improve the bots performance.\n\n'
+        )
+
+    @property
     def description(self):
-        return '{}{}'.format(
+        return '{}{}{}'.format(
             self.intro,
             self.reason_for_posting,
+            self.vote_comment,
         )
 
     @property
