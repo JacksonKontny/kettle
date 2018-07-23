@@ -332,7 +332,7 @@ class SteemSentimentCommenter(object):
                 sentiment = PostSentiment(post)
                 self.save_sentiment(sentiment)
                 self.handle_interaction_with_content_provider(sentiment)
-            if datetime.datetime.now().hour == 13 and len(self.post_list) == 9:
+            if datetime.datetime.now().hour == 13:
                 self.write_positive_article_post()
 
     def save_sentiment(self, sentiment):
@@ -373,11 +373,40 @@ class SteemSentimentCommenter(object):
             "articles a read and see if they can improve your life, inspire you and improve "
             "your day:\n\n"
         )
-        links = '\n\n'.join(self.post_list)
-        self.post_list = []
+        positive_article_links = [post for post in self.post_list if self.is_post_verified_positive(Post(post))]
+        links = '\n\n'.join(positive_article_links)
+        self.post_list = list(set(self.post_list) - set(positive_article_links))
+        self.clear_expired_posts()
         body = '{}{}'.format(intro, links)
         tags = ['life', 'motivation', 'inspiration', 'happy', 'good-karma']
-        self.steem_client.write_post(title, body, tags)
+        if positive_article_links:
+            self.steem_client.write_post(title, body, tags)
+
+    def clear_expired_posts(self):
+        for post in self.post_list:
+            if Post(post).created < datetime.datetime.now() - datetime.timedelta(hours=24):
+                self.post_list.remove(post)
+
+    def is_post_verified_positive(self, post):
+        for reply in post.get_replies():
+            if reply.author == self.steem_client.account:
+                sentiment_bot_comment = reply
+                if sentiment_bot_comment.net_votes > 0:
+                    return True
+                no_count = 0
+                yes_count = 0
+                for sentiment_bot_reply in sentiment_bot_comment.get_replies():
+                    reply_words = sentiment_bot_reply.lower().split(' ')
+                    if 'yes' in reply_words:
+                        yes_count += 1
+                    if 'no' in reply_words:
+                        no_count += 1
+                return yes_count > no_count
+
+
+
+
+
 
 
 if __name__ == '__main__':
