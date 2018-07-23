@@ -159,7 +159,7 @@ class MongoSteem(object):
             self.update_post(post)
 
     def is_post_new(self, post):
-        return bool(self.collection.find_one({'id': post.id}, {'_id': 1}))
+        return not bool(self.collection.find_one({'id': post.id}, {'_id': 1}))
 
 
 class PostSentiment(object):
@@ -325,13 +325,10 @@ class SteemSentimentCommenter(object):
 
     def run(self):
         for post in self.steem_client.stream_fresh_posts():
-            print('post found')
-            print(len(post.body.split(' ')))
             if (
                 len(post.body.split(' ')) > self.article_word_count
                 and self.mongo_steem.is_post_new(post)
             ):
-                print('new post with length found')
                 sentiment = PostSentiment(post)
                 self.save_sentiment(sentiment)
                 self.handle_interaction_with_content_provider(sentiment)
@@ -347,15 +344,12 @@ class SteemSentimentCommenter(object):
         )
 
     def handle_interaction_with_content_provider(self, post_sentiment):
-        print('pos_polarity: ', post_sentiment.avg_normalized_polarity)
         if post_sentiment.is_pos_outlier:
-            print('pass pos polarity test!')
             post_sentiment.post.refresh()
             if (
                 # post_sentiment.post.net_votes >= 3 and
                 not self.steem_client.is_post_spam(post_sentiment.post)
             ):
-                print('post not spam')
                 self.steem_client.upvote_post(post_sentiment.post)
                 self.steem_client.comment_on_post(
                     post_sentiment.post,
