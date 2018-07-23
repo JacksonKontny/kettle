@@ -101,6 +101,7 @@ class SteemClient(object):
             author=self.account,
             body=body,
             tags=tags,
+            title=title,
         )
 
     def is_post_spam(self, post):
