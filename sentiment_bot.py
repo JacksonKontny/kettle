@@ -379,7 +379,7 @@ class SteemSentimentCommenter(object):
         self.clear_expired_posts()
         body = '{}{}'.format(intro, links)
         tags = ['life', 'motivation', 'inspiration', 'happy', 'good-karma']
-        if positive_article_links:
+        if len(positive_article_links) >= 3:
             self.steem_client.write_post(title, body, tags)
 
     def clear_expired_posts(self):
