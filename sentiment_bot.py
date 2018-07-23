@@ -258,10 +258,9 @@ class PostSentiment(object):
         return (
             'Your post has been selected and upvoted because it has a high '
             'concentration of positive words that give feel-good vibes. '
-            'My bot and I would like to thank you for creating content that '
-            'focuses on the bright side.\n\n'
-            'In the future your post will be included in a curated list posted '
-            'at the end of the day that includes positive content\n\n'
+            'Thank you for creating content that focuses on the bright side.\n\n'
+            'Your post has also been entered to be included in a daily roundup '
+            'of positive posts.'
         )
 
     @property
@@ -269,7 +268,9 @@ class PostSentiment(object):
         return (
             'Please comment \'yes\' or \'no\' if you feel that my bot is '
             'correct in its judgement of this post.  Your comments will be '
-            'used to improve performance.\n\n'
+            'used to determine if this article belongs in the curated list. '
+            'Over time, your feedback will be used to improve the judgement of '
+            'this bot\n\n'
         )
 
     @property
@@ -402,11 +403,6 @@ class SteemSentimentCommenter(object):
                     if 'no' in reply_words:
                         no_count += 1
                 return yes_count > no_count
-
-
-
-
-
 
 
 if __name__ == '__main__':
