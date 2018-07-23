@@ -326,6 +326,7 @@ class SteemSentimentCommenter(object):
     def run(self):
         for post in self.steem_client.stream_fresh_posts():
             print('post found')
+            print(len(post.body.split(' ')))
             if (
                 len(post.body.split(' ')) > self.article_word_count
                 and self.mongo_steem.is_post_new(post)
