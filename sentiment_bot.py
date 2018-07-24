@@ -416,7 +416,7 @@ class SteemSentimentCommenter(object):
                 yes_count = 0
                 for sentiment_bot_reply in sentiment_bot_comment.get_replies():
                     table = str.maketrans(dict.fromkeys(string.punctuation))
-                    reply_words = set(sentiment_bot_reply.translate(table).lower().split(' '))
+                    reply_words = set(sentiment_bot_reply.body.translate(table).lower().split(' '))
                     if 'yes' in reply_words:
                         yes_count += 1 + sentiment_bot_reply.net_votes
                     if 'no' in reply_words:
