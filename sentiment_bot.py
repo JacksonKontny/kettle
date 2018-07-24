@@ -146,11 +146,13 @@ class MongoSteem(object):
         except Exception as e:
             print(e)
 
-    def update_post(self, post):
+    def update_post(self, post, **kwargs):
         post.refresh()
+        post_data = self.get_post_data_for_storage(post)
+        post_data.update(kwargs)
         self.collection.update_one(
             {'identifier': post.identifier},
-            {'$set': self.get_post_data_for_storage(post)}
+            {'$set': post_data},
         )
 
     def update_posts(self, query=None):
@@ -307,6 +309,8 @@ class PostSentiment(object):
             'polarities': self.polarities,
             'normalized_polarities': self.normalized_polarities,
             'overall_polarity': self.overall_polarity,
+            'is_pos_outlier': self.is_pos_outlier,
+            'is_neg_outlier': self.is_neg_outlier,
         }
 
     @property
@@ -348,10 +352,7 @@ class SteemSentimentCommenter(object):
     def handle_interaction_with_content_provider(self, post_sentiment):
         if post_sentiment.is_pos_outlier:
             post_sentiment.post.refresh()
-            if (
-                # post_sentiment.post.net_votes >= 3 and
-                not self.steem_client.is_post_spam(post_sentiment.post)
-            ):
+            if not self.steem_client.is_post_spam(post_sentiment.post):
                 self.steem_client.upvote_post(post_sentiment.post)
                 self.steem_client.comment_on_post(
                     post_sentiment.post,
@@ -363,7 +364,11 @@ class SteemSentimentCommenter(object):
                 print('posts in list: {}'.format(len(self.post_list)))
 
     def get_steemit_url(self, post):
-        return 'https://steemit.com{}'.format(post.url)
+        if isinstance(post, Post):
+            post_url = post.url
+        else:
+            post_url = post['url']
+        return 'https://steemit.com{}'.format(post_url)
 
     def write_positive_article_post(self):
         title = 'Top positive articles of the day - {}'.format(str(datetime.date.today()))
@@ -375,14 +380,26 @@ class SteemSentimentCommenter(object):
             "articles a read and see if they can improve your life, inspire you and improve "
             "your day:\n\n"
         )
-        positive_article_links = [post for post in self.post_list if self.is_post_verified_positive(Post(post))]
-        links = '\n\n'.join(positive_article_links)
-        self.post_list = list(set(self.post_list) - set(positive_article_links))
-        self.clear_expired_posts()
+        positive_posts = self.get_positive_posts()
+        verified_posts = []
+        for post_data in positive_posts:
+            post = Post(post_data)
+            if self.is_post_verified_positive(post):
+                verified_posts.append(post)
+                self.mongo_steem.update_post(post, is_in_positive_article_post=True)
+        links = '\n\n'.join([post.url for post in verified_posts])
         body = '{}{}'.format(intro, links)
         tags = ['life', 'motivation', 'inspiration', 'happy', 'good-karma']
-        if len(positive_article_links) >= 3:
+        if len(links) >= 3:
             self.steem_client.write_post(title, body, tags)
+
+
+    def get_positive_posts(self):
+        self.mongo_steem.collection.find({
+            'created': {'$gt': datetime.datetime.now() - datetime.timedelta(hours=24)},
+            'is_pos_outlier': True,
+            'is_in_positive_article_post': {'$exists': False},
+        })
 
     def clear_expired_posts(self):
         for post in self.post_list:
@@ -398,11 +415,12 @@ class SteemSentimentCommenter(object):
                 no_count = 0
                 yes_count = 0
                 for sentiment_bot_reply in sentiment_bot_comment.get_replies():
-                    reply_words = sentiment_bot_reply.lower().split(' ')
+                    table = str.maketrans(dict.fromkeys(string.punctuation))
+                    reply_words = set(sentiment_bot_reply.translate(table).lower().split(' '))
                     if 'yes' in reply_words:
-                        yes_count += 1
+                        yes_count += 1 + sentiment_bot_reply.net_votes
                     if 'no' in reply_words:
-                        no_count += 1
+                        no_count += 1 + sentiment_bot_reply.net_votes
                 return yes_count > no_count
 
 
