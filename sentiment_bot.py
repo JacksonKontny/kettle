@@ -2,6 +2,7 @@ import configparser
 import datetime
 import json
 import random
+import string
 import time
 
 import langdetect
@@ -399,16 +400,11 @@ class SteemSentimentCommenter(object):
 
 
     def get_positive_posts(self):
-        self.mongo_steem.collection.find({
-            'created': {'$gt': datetime.datetime.now() - datetime.timedelta(hours=24)},
+        return self.mongo_steem.collection.find({
+            'created': {'$gt': datetime.datetime.now() - datetime.timedelta(hours=48)},
             'is_pos_outlier': True,
             'is_in_positive_article_post': {'$exists': False},
         })
-
-    def clear_expired_posts(self):
-        for post in self.post_list:
-            if Post(post).created < datetime.datetime.now() - datetime.timedelta(hours=24):
-                self.post_list.remove(post)
 
     def is_post_verified_positive(self, post):
         for reply in post.get_replies():
