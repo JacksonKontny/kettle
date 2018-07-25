@@ -340,7 +340,7 @@ class SteemSentimentCommenter(object):
                 sentiment = PostSentiment(post)
                 self.save_sentiment(sentiment)
                 self.handle_interaction_with_content_provider(sentiment)
-            if datetime.datetime.now().hour == 13 and not self.post_cooldown:
+            if datetime.datetime.now().hour == 17 and not self.post_cooldown:
                 self.write_positive_article_post()
                 self.post_cooldown = True
             elif datetime.datetime.now().hour == 23:
