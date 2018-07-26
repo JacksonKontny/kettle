@@ -392,12 +392,39 @@ class SteemSentimentCommenter(object):
             if self.is_post_verified_positive(post):
                 verified_posts.append(post)
                 self.mongo_steem.update_post(post, is_in_positive_article_post=True)
-        links = '\n\n'.join([post.url for post in verified_posts])
-        body = '{}{}'.format(intro, links)
+        links = '\n\n'.join([self.get_steemit_url(post) for post in verified_posts])
+        authors = ', '.join([post.author for post in verified_posts])
+        author_thank_you = (
+            'Thanks to the authors for creating the content: {}\n\n'.format(
+                authors
+            )
+        )
+        curators = self.get_post_curators(verified_posts)
+        curator_thank_you = (
+            'And a very special thanks to the curators that helped ensure this '
+            'content is legitimate: {}'.format(', '.join(curators))
+        )
+        body = '{}{}{}{}'.format(intro, links, author_thank_you, curator_thank_you)
         tags = ['life', 'motivation', 'inspiration', 'happy', 'good-karma']
         if len(links) >= 3:
+            print('posting: {}'.format(title))
             self.steem_client.write_post(title, body, tags)
 
+    def get_post_curators(self, verified_posts):
+        for post in verified_posts:
+            post_curators = set()
+            for reply in post.get_replies():
+                if reply.author == self.steem_client.account:
+                    sentiment_bot_comment = reply
+                    post_curators = post_curators.union(
+                        set(['@' + comment['voter'] for comment in sentiment_bot_comment.active_votes])
+                    )
+                    for sentiment_bot_reply in sentiment_bot_comment.get_replies():
+                        table = str.maketrans(dict.fromkeys(string.punctuation))
+                        reply_words = set(sentiment_bot_reply.body.translate(table).lower().split(' '))
+                        if 'yes' in reply_words or 'no' in reply_words:
+                            post_curators.add('@' + sentiment_bot_reply.author)
+        return post_curators
 
     def get_positive_posts(self):
         return self.mongo_steem.collection.find({
