@@ -393,9 +393,9 @@ class SteemSentimentCommenter(object):
                 verified_posts.append(post)
                 self.mongo_steem.update_post(post, is_in_positive_article_post=True)
         links = '\n\n'.join([self.get_steemit_url(post) for post in verified_posts])
-        authors = ', '.join([post.author for post in verified_posts])
+        authors = ', '.join(['@' + post.author for post in verified_posts])
         author_thank_you = (
-            'Thanks to the authors for creating the content: {}\n\n'.format(
+            'Thanks to the authors for creating the content:\n{}\n\n'.format(
                 authors
             )
         )
