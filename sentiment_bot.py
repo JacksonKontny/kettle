@@ -404,15 +404,15 @@ class SteemSentimentCommenter(object):
             'And a very special thanks to the curators that helped ensure this '
             'content is legitimate: {}'.format(', '.join(curators))
         )
-        body = '{}{}{}{}'.format(intro, links, author_thank_you, curator_thank_you)
+        body = '{}{}\n\n{}{}'.format(intro, links, author_thank_you, curator_thank_you)
         tags = ['life', 'motivation', 'inspiration', 'happy', 'good-karma']
         if len(links) >= 3:
             print('posting: {}'.format(title))
             self.steem_client.write_post(title, body, tags)
 
     def get_post_curators(self, verified_posts):
+        post_curators = set()
         for post in verified_posts:
-            post_curators = set()
             for reply in post.get_replies():
                 if reply.author == self.steem_client.account:
                     sentiment_bot_comment = reply
