@@ -116,9 +116,16 @@ class SteemClient(object):
 class MongoSteem(object):
 
     def __init__(self, host='localhost', port=27017, db_name='steem', collection_name='posts'):
-        mongo_client = MongoClient(host, port)
-        db = getattr(mongo_client, db_name)
-        self.collection = getattr(db, collection_name)
+        self.host = host
+        self.port = port
+        self.db_name = db_name
+        self.collection_name = collection_name
+        self.collection = self.init_collection()
+
+    def init_collection(self):
+        mongo_client = MongoClient(self.host, self.port)
+        db = getattr(mongo_client, self.db_name)
+        return getattr(db, self.collection_name)
 
     def get_post_data_for_storage(self, post):
         export = post.export()
@@ -129,7 +136,12 @@ class MongoSteem(object):
         post_data = self.get_post_data_for_storage(post)
         if additional_data:
             post_data.update(additional_data)
-        self.collection.insert_one(post_data)
+        try:
+            self.collection.insert_one(post_data)
+        except:
+            print('failed to store post, reinitting db and trying again')
+            self.init_collection()
+            self.store_post(post, additional_data)
 
     def stream_posts_from_mongo(self, query=None, limit=None, raw=False):
         if query is None:
@@ -151,10 +163,15 @@ class MongoSteem(object):
         post.refresh()
         post_data = self.get_post_data_for_storage(post)
         post_data.update(kwargs)
-        self.collection.update_one(
-            {'identifier': post.identifier},
-            {'$set': post_data},
-        )
+        try:
+            self.collection.update_one(
+                {'identifier': post.identifier},
+                {'$set': post_data},
+            )
+        except:
+            print('failed to update post, reinitting db and trying again')
+            self.init_collection()
+            self.update_post(post, **kwargs)
 
     def update_posts(self, query=None):
         if not query:
@@ -163,7 +180,12 @@ class MongoSteem(object):
             self.update_post(post)
 
     def is_post_new(self, post):
-        return not bool(self.collection.find_one({'id': post.id}, {'_id': 1}))
+        try:
+            return not bool(self.collection.find_one({'id': post.id}, {'_id': 1}))
+        except:
+            print('failed to check if post is new, reinitting db and trying again')
+            self.init_collection()
+            return self.is_post_new(post)
 
 
 class PostSentiment(object):
