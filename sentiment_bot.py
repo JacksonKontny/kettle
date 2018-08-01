@@ -355,6 +355,8 @@ class SteemSentimentCommenter(object):
 
     def run(self):
         for post in self.steem_client.stream_fresh_posts():
+            if datetime.datetime.now().hour != 13 and self.post_cooldown:
+                self.post_cooldown = False
             if (
                 len(post.body.split(' ')) > self.article_word_count
                 and self.mongo_steem.is_post_new(post)
@@ -362,11 +364,9 @@ class SteemSentimentCommenter(object):
                 sentiment = PostSentiment(post)
                 self.save_sentiment(sentiment)
                 self.handle_interaction_with_content_provider(sentiment)
-            if datetime.datetime.now().hour == 21 and not self.post_cooldown:
+            if datetime.datetime.now().hour == 13 and not self.post_cooldown:
                 self.write_positive_article_post()
                 self.post_cooldown = True
-            elif datetime.datetime.now().hour == 23:
-                self.post_cooldown = False
 
     def save_sentiment(self, sentiment):
         with open('post_sentiment.csv', 'a+') as fh:
