@@ -128,7 +128,11 @@ class MongoSteem(object):
         return getattr(db, self.collection_name)
 
     def get_post_data_for_storage(self, post):
-        export = post.export()
+        try:
+            export = post.export()
+        except Exception as e:
+            print(e)
+
         export['tags'] = list(export['tags'])
         return export
 
@@ -472,7 +476,13 @@ class SteemSentimentCommenter(object):
                         no_count += 1 + sentiment_bot_reply.net_votes
                 return yes_count > no_count
 
+def run_commenter():
+    try:
+        commenter = SteemSentimentCommenter()
+        commenter.run()
+    except:
+        print('The whole thing failed!')
+        run_commenter()
 
 if __name__ == '__main__':
-    commenter = SteemSentimentCommenter()
-    commenter.run()
+    run_commenter()
