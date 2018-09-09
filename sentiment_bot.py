@@ -115,17 +115,17 @@ class SteemClient(object):
 
 class MongoSteem(object):
 
-    def __init__(self, host='localhost', port=27017, db_name='steem', collection_name='posts'):
+    def __init__(self, host='localhost', port=27017, db_name='steem'):
         self.host = host
         self.port = port
         self.db_name = db_name
-        self.collection_name = collection_name
-        self.collection = self.init_collection()
+        self.init_collections()
 
-    def init_collection(self):
+    def init_collections(self):
         mongo_client = MongoClient(self.host, self.port)
         db = getattr(mongo_client, self.db_name)
-        return getattr(db, self.collection_name)
+        self.posts = db.posts
+        self.users = db.users
 
     def get_post_data_for_storage(self, post):
         try:
@@ -141,16 +141,16 @@ class MongoSteem(object):
         if additional_data:
             post_data.update(additional_data)
         try:
-            self.collection.insert_one(post_data)
+            self.posts.insert_one(post_data)
         except:
             print('failed to store post, reinitting db and trying again')
-            self.init_collection()
+            self.init_collections()
             self.store_post(post, additional_data)
 
     def stream_posts_from_mongo(self, query=None, limit=None, raw=False):
         if query is None:
             query = {}
-        post_query = self.collection.find(query)
+        post_query = self.posts.find(query)
         if limit:
             post_query = post_query.limit(limit)
         try:
@@ -168,13 +168,13 @@ class MongoSteem(object):
         post_data = self.get_post_data_for_storage(post)
         post_data.update(kwargs)
         try:
-            self.collection.update_one(
+            self.posts.update_one(
                 {'identifier': post.identifier},
                 {'$set': post_data},
             )
         except:
             print('failed to update post, reinitting db and trying again')
-            self.init_collection()
+            self.init_collections()
             self.update_post(post, **kwargs)
 
     def update_posts(self, query=None):
@@ -185,11 +185,24 @@ class MongoSteem(object):
 
     def is_post_new(self, post):
         try:
-            return not bool(self.collection.find_one({'id': post.id}, {'_id': 1}))
+            return not bool(self.posts.find_one({'id': post.id}, {'_id': 1}))
         except:
             print('failed to check if post is new, reinitting db and trying again')
             self.init_collection()
             return self.is_post_new(post)
+
+    def unsubscribe_user(self, user):
+        self.users.update_one(
+            {'user': user},
+            {'$set': {'unsubsribed': True}}
+        )
+
+    def get_positive_posts(self):
+        return self.posts.find({
+            'created': {'$gt': datetime.datetime.now() - datetime.timedelta(hours=48)},
+            'is_pos_outlier': True,
+            'is_in_positive_article_post': {'$exists': False},
+        })
 
 
 class PostSentiment(object):
@@ -411,7 +424,7 @@ class SteemSentimentCommenter(object):
             "articles a read and see if they can improve your life, inspire you and improve "
             "your day:\n\n"
         )
-        positive_posts = self.get_positive_posts()
+        positive_posts = self.mongo_steem.get_positive_posts()
         verified_posts = []
         for post_data in positive_posts:
             post = Post(post_data)
@@ -439,42 +452,55 @@ class SteemSentimentCommenter(object):
     def get_post_curators(self, verified_posts):
         post_curators = set()
         for post in verified_posts:
-            for reply in post.get_replies():
-                if reply.author == self.steem_client.account:
-                    sentiment_bot_comment = reply
-                    post_curators = post_curators.union(
-                        set(['@' + comment['voter'] for comment in sentiment_bot_comment.active_votes])
-                    )
-                    for sentiment_bot_reply in sentiment_bot_comment.get_replies():
-                        table = str.maketrans(dict.fromkeys(string.punctuation))
-                        reply_words = set(sentiment_bot_reply.body.translate(table).lower().split(' '))
-                        if 'yes' in reply_words or 'no' in reply_words:
-                            post_curators.add('@' + sentiment_bot_reply.author)
+            sentiment_bot_comment = self.get_senti_bot_comment(post)
+            post_curators = post_curators.union(
+                set(['@' + comment['voter'] for comment in sentiment_bot_comment.active_votes])
+            )
+            for sentiment_bot_reply in sentiment_bot_comment.get_replies():
+                table = str.maketrans(dict.fromkeys(string.punctuation))
+                reply_words = set(sentiment_bot_reply.body.translate(table).lower().split(' '))
+                if 'yes' in reply_words or 'no' in reply_words:
+                    post_curators.add('@' + sentiment_bot_reply.author)
         return post_curators
 
-    def get_positive_posts(self):
-        return self.mongo_steem.collection.find({
-            'created': {'$gt': datetime.datetime.now() - datetime.timedelta(hours=48)},
-            'is_pos_outlier': True,
-            'is_in_positive_article_post': {'$exists': False},
-        })
-
-    def is_post_verified_positive(self, post):
+    def get_senti_bot_comment(self, post):
         for reply in post.get_replies():
             if reply.author == self.steem_client.account:
-                sentiment_bot_comment = reply
-                if sentiment_bot_comment.net_votes > 0:
-                    return True
-                no_count = 0
-                yes_count = 0
-                for sentiment_bot_reply in sentiment_bot_comment.get_replies():
-                    table = str.maketrans(dict.fromkeys(string.punctuation))
-                    reply_words = set(sentiment_bot_reply.body.translate(table).lower().split(' '))
-                    if 'yes' in reply_words:
-                        yes_count += 1 + sentiment_bot_reply.net_votes
-                    if 'no' in reply_words:
-                        no_count += 1 + sentiment_bot_reply.net_votes
-                return yes_count > no_count
+                return reply
+
+
+    def is_post_verified_positive(self, post):
+        sentiment_bot_comment = self.get_senti_bot_comment(post)
+        if sentiment_bot_comment.net_votes > 0:
+            return True
+        no_count = 0
+        yes_count = 0
+        for sentiment_bot_reply in sentiment_bot_comment.get_replies():
+            table = str.maketrans(dict.fromkeys(string.punctuation))
+            reply_words = set(sentiment_bot_reply.body.translate(table).lower().split(' '))
+            if 'stop' in reply_words:
+                if post.author == sentiment_bot_reply.author:
+                    self.mongo_steem.unsubscribe_user(post.author)
+                    self.steem_client.comment_on_post(
+                        sentiment_bot_reply,
+                        (
+                            'Sorry for the trouble {}, you have been removed.'.format(post.author)
+                        )
+                    )
+                    return False
+                else:
+                    self.steem_client.comment_on_post(
+                        sentiment_bot_reply,
+                        (
+                            'Sorry, only {} can unsubsribe.'.format(post.author)
+                        )
+                    )
+            if 'yes' in reply_words:
+                yes_count += 1 + sentiment_bot_reply.net_votes
+            if 'no' in reply_words:
+                no_count += 1 + sentiment_bot_reply.net_votes
+        return yes_count > no_count
+
 
 def run_commenter():
     try:
