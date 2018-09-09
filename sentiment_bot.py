@@ -205,6 +205,17 @@ class MongoSteem(object):
             'is_in_positive_article_post': {'$exists': False},
         })
 
+    def is_user_unsubscribed(self, user):
+        return bool(
+            self.users.find_one(
+                {
+                    'unsubscribed': True,
+                    'user': user
+                },
+                {'_id': 1}
+            )
+        )
+
 
 class PostSentiment(object):
     def __init__(self, post):
@@ -378,6 +389,7 @@ class SteemSentimentCommenter(object):
             if (
                 len(post.body.split(' ')) > self.article_word_count
                 and self.mongo_steem.is_post_new(post)
+                and not self.mongo_steem.is_user_unsubscribed(post.author)
             ):
                 sentiment = PostSentiment(post)
                 self.save_sentiment(sentiment)
