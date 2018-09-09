@@ -319,7 +319,7 @@ class PostSentiment(object):
     @property
     def vote_comment(self):
         return (
-            'Please comment \'yes\' or if you think this post is a positive post or '
+            'Please comment \'yes\' if you think this post is a positive post or '
             '\'no\' if you feel that this post is not a positive post. '
             'Articles with the most \'yes\' votes will be included in a daily roundup '
             'of positive posts.\n\n'
