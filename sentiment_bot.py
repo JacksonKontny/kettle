@@ -194,7 +194,7 @@ class MongoSteem(object):
     def unsubscribe_user(self, user):
         self.users.update_one(
             {'user': user},
-            {'$set': {'user': user, 'unsubsribed': True}},
+            {'$set': {'user': user, 'unsubscribed': True}},
             upsert=True,
         )
 
@@ -505,7 +505,7 @@ class SteemSentimentCommenter(object):
                     self.steem_client.comment_on_post(
                         sentiment_bot_reply,
                         (
-                            'Sorry, only {} can unsubsribe.'.format(post.author)
+                            'Sorry, only {} can unsubscribe.'.format(post.author)
                         )
                     )
             if 'yes' in reply_words:
