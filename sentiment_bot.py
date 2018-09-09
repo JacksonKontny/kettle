@@ -314,18 +314,17 @@ class PostSentiment(object):
             'Your post has been selected and upvoted because it has a high '
             'concentration of positive words that give feel-good vibes. '
             'Thank you for creating content that focuses on the bright side.\n\n'
-            'Your post has also been entered to be included in a daily roundup '
-            'of positive posts.'
         )
 
     @property
     def vote_comment(self):
         return (
-            'Please comment \'yes\' or \'no\' if you feel that my bot is '
-            'correct in its judgement of this post.  Your comments will be '
-            'used to determine if this article belongs in the curated list. '
-            'Over time, your feedback will be used to improve the judgement of '
-            'this bot\n\n'
+            'Please comment \'yes\' or if you think this post is a positive post or '
+            '\'no\' if you feel that this post is not a positive post. '
+            'Articles with the most \'yes\' votes will be included in a daily roundup '
+            'of positive posts.\n\n'
+            'You may comment \"stop\" to be added to a list of users that will '
+            'never be included and will receive no more comments.\n\n'
         )
 
     @property
