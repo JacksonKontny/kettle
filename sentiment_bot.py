@@ -194,7 +194,8 @@ class MongoSteem(object):
     def unsubscribe_user(self, user):
         self.users.update_one(
             {'user': user},
-            {'$set': {'unsubsribed': True}}
+            {'$set': {'user': user, 'unsubsribed': True}},
+            upsert=True,
         )
 
     def get_positive_posts(self):
