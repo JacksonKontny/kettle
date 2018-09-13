@@ -398,8 +398,6 @@ class SteemSentimentCommenter(object):
                 self.post_cooldown = True
 
     def save_sentiment(self, sentiment):
-        with open('post_sentiment.csv', 'a+') as fh:
-            fh.write(sentiment.to_csv)
         self.mongo_steem.store_post(
             sentiment.post,
             additional_data=sentiment.to_mongo
@@ -518,8 +516,11 @@ def run_commenter():
     try:
         commenter = SteemSentimentCommenter()
         commenter.run()
-    except:
+    except KeyboardInterrupt:
+        print('time to exit')
+    except Exception as e:
         print('The whole thing failed!')
+        print(e)
         run_commenter()
 
 if __name__ == '__main__':
