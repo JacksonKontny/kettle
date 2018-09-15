@@ -26,6 +26,7 @@ POST_CATEGORIES = set([
     'blog', 'funny', 'news', 'dlive', 'dtube', 'dmania', 'crypto', 'money',
     'blockchain', 'technology', 'science', 'sports'
 ])
+EXCLUDE_CATEGORIES = set(['nsfw'])
 SPAM_DETECTORS = set(['badcontent'])
 
 
@@ -70,7 +71,7 @@ class SteemClient(object):
                         and post.time_elapsed() < datetime.timedelta(
                             minutes=expiration_minutes
                         ) and langdetect.detect(post.body) == 'en'
-                        # and post.category in POST_CATEGORIES
+                        and post.category not in EXCLUDE_CATEGORIES
                 ):
                     yield post
             except PostDoesNotExist as exception:
