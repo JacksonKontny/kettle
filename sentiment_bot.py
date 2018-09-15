@@ -213,6 +213,9 @@ class MongoSteem(object):
             'is_in_positive_article_post': {'$exists': False},
         })
 
+    def is_post_valid(self, post):
+        return self.is_post_new(post) and self.is_user_unsubscribed(post.author)
+
     def is_user_unsubscribed(self, user):
         return bool(
             self.users.find_one(
@@ -392,10 +395,7 @@ class SteemSentimentCommenter(object):
         for post in self.steem_client.stream_fresh_posts():
             if datetime.datetime.now().hour != 13 and self.post_cooldown:
                 self.post_cooldown = False
-            if (
-                and self.mongo_steem.is_post_new(post)
-                and not self.mongo_steem.is_user_unsubscribed(post.author)
-            ):
+            if self.mongo_steem.is_post_valid(post):
                 sentiment = PostSentiment(post)
                 self.save_sentiment(sentiment)
                 self.handle_interaction_with_content_provider(sentiment)
