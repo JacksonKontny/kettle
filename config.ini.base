@@ -3,3 +3,5 @@ posting_key=
 account=
 positive_threshold=
 negative_threshold=
+article_length_lower_limit=
+expiration_minutes=

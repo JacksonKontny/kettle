@@ -19,6 +19,8 @@ config.read('config.ini')
 POSTING_KEY = config['steem']['posting_key']
 POSITIVE_THRESHOLD = float(config['steem']['positive_threshold'])
 NEGATIVE_THRESHOLD = float(config['steem']['negative_threshold'])
+ARTICLE_LENGTH_LOWER_LIMIT = int(config['steem'].get('aricle_length_lower_limit')) or 500
+EXPIRATION_MINUTES = int(config['steem'].get('expiration_minutes')) or 15
 ACCOUNT = config['steem']['account']
 POST_CATEGORIES = set([
     'altcoin', 'bitshares', 'btc', 'business', 'crypto-news', 'curation',
@@ -49,7 +51,7 @@ class SteemClient(object):
         self.account = account
         self.steem = Steem(keys=[posting_key])
 
-    def stream_fresh_posts(self, is_main=True, allow_votes=True, expiration_minutes=15):
+    def stream_fresh_posts(self, expiration_minutes=15):
         """
         Retrieves posts filtered by the input criteria.
 
@@ -65,14 +67,7 @@ class SteemClient(object):
         while True:
             try:
                 post = next(stream)
-                if (
-                        (not is_main or post.is_main_post())
-                        and (not allow_votes or post.allow_votes)
-                        and post.time_elapsed() < datetime.timedelta(
-                            minutes=expiration_minutes
-                        ) and langdetect.detect(post.body) == 'en'
-                        and post.category not in EXCLUDE_CATEGORIES
-                ):
+                if post.is_fresh_post:
                     yield post
             except PostDoesNotExist as exception:
                 print('post does not exist exception... moving on')
@@ -84,6 +79,18 @@ class SteemClient(object):
             except Exception as e:
                 print(e)
                 stream = self.steem.stream_comments()
+
+    def is_fresh_post(post):
+        return (
+            not post.is_main_post()
+            and post.allow_votes
+            and post.time_elapsed() < datetime.timedelta(
+                minutes=EXPIRATION_MINUTES
+            ) and langdetect.detect(post.body) == 'en'
+            and post.category not in EXCLUDE_CATEGORIES
+            and len(post.body.split(' ')) > ARTICLE_LENGTH_LOWER_LIMIT
+        )
+
 
     def comment_on_post(self, post, comment):
         try:
@@ -375,9 +382,8 @@ class PostSentiment(object):
 
 
 class SteemSentimentCommenter(object):
-    def __init__(self, article_word_count=500):
+    def __init__(self):
         self.steem_client = SteemClient()
-        self.article_word_count = 500
         self.post_list = []
         self.mongo_steem = MongoSteem()
         self.post_cooldown = False
@@ -387,7 +393,6 @@ class SteemSentimentCommenter(object):
             if datetime.datetime.now().hour != 13 and self.post_cooldown:
                 self.post_cooldown = False
             if (
-                len(post.body.split(' ')) > self.article_word_count
                 and self.mongo_steem.is_post_new(post)
                 and not self.mongo_steem.is_user_unsubscribed(post.author)
             ):
