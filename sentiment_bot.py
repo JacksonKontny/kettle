@@ -80,7 +80,7 @@ class SteemClient(object):
                 print(e)
                 stream = self.steem.stream_comments()
 
-    def is_fresh_post(post):
+    def is_fresh_post(self, post):
         return (
             not post.is_main_post()
             and post.allow_votes
@@ -112,6 +112,9 @@ class SteemClient(object):
             tags=tags,
             title=title,
         )
+
+    def is_post_valid(self, post):
+        return not is_post_spam(post)
 
     def is_post_spam(self, post):
         replies = post.get_replies()
@@ -228,94 +231,41 @@ class MongoSteem(object):
         )
 
 
-class PostSentiment(object):
-    def __init__(self, post):
+class PostSentimentAnalyzer(object):
+    def __init__(self):
         self.sid = SentimentIntensityAnalyzer()
-        self.post = post
         self.negative_threshold = NEGATIVE_THRESHOLD
         self.positive_threshold = POSITIVE_THRESHOLD
 
-    @property
-    def tokens(self):
-        return tokenize.sent_tokenize(self.post.body)
+    def get_tokens(self, post):
+        return tokenize.sent_tokenize(post.body)
 
-    @property
-    def polarities(self):
+    def get_polarities(self, post):
         polarities = []
-        for token in self.tokens:
+        for token in self.get_tokens(post):
             polarities.append(self.sid.polarity_scores(token))
         return polarities
 
-    @property
-    def normalized_polarities(self):
-        return [pol['pos'] - pol['neg'] for pol in self.polarities]
+    def get_normalized_polarities(self, post):
+        return [pol['pos'] - pol['neg'] for pol in self.get_polarities(post)]
 
-    @property
-    def neg_polarity_sentence(self):
-        return self.tokens[
-            self.normalized_polarities.index(min(self.normalized_polarities))
-        ]
-
-    @property
-    def pos_polarity_sentence(self):
-        return self.tokens[
-            self.normalized_polarities.index(max(self.normalized_polarities))
-        ]
-
-    @property
-    def overall_polarity(self):
+    def get_overall_polarity(self, post):
         overall_polarity = {}
+        polarities = self.get_polarities(post)
         for key in ['pos', 'neg', 'neu', 'compound']:
             average = round(
-                sum([pol[key] for pol in self.polarities]) / len(self.polarities),
+                sum([pol[key] for pol in polarities]) / len(polarities),
                 3
             )
             overall_polarity[key] = average
         return overall_polarity
 
-    @property
-    def negative_polarity_description(self):
-        if min(self.normalized_polarities) < 0:
-            return (
-                'The most negative sentence in your post had a normalized '
-                'negativity score of {}:\n\n"{}"\n\n'.format(
-                    min(self.normalized_polarities),
-                    self.neg_polarity_sentence
-                )
-            )
-        return ''
-
-    @property
-    def positive_polarity_description(self):
-        if max(self.normalized_polarities) > 0:
-            return (
-                'The most positive sentence in your post had a normalized '
-                'positivity score of {}:\n\n"{}"\n\n'.format(
-                    max(self.normalized_polarities),
-                    self.pos_polarity_sentence
-                )
-            )
-        return ''
-
-    @property
-    def overall_polarity_description(self):
-        return (
-            'Your post had an average negative sentiment of -{}, '
-            'an average positive sentiment of {}, and an average normalized '
-            'sentiment of {}\n\n'.format(
-                self.overall_polarity['neg'],
-                self.overall_polarity['pos'],
-                str(self.avg_normalized_polarity),
-            )
-        )
-
-    @property
-    def intro(self):
+    def get_intro(self, post):
         return (
             'Thanks for the post, {post_author}.\n\n'
             'This bot runs through hundreds of posts per day selecting a small '
             'percentage of posts that have exceptional positivity.\n\n'.format(
-                post_author=self.post.author
+                post_author=post.author
             )
         )
 
@@ -338,90 +288,72 @@ class PostSentiment(object):
             'never be included and will receive no more comments.\n\n'
         )
 
-    @property
-    def description(self):
+    def get_description(self, post):
         return '{}{}{}'.format(
-            self.intro,
+            self.get_intro(post),
             self.reason_for_posting,
             self.vote_comment,
         )
 
-    @property
-    def avg_normalized_polarity(self):
+    def get_avg_normalized_polarity(self, post):
+        normalized_polarities = self.get_normalized_polarities(post)
         return round(
-            sum(self.normalized_polarities) / len(self.normalized_polarities),
+            sum(normalized_polarities) / len(normalized_polarities),
             2
         )
 
-    def get_max_polarity(self, pole='neg'):
-        polarity_values = [polarity[pole] for polarity in self.polarities]
-        return max(polarity_values)
-
-    @property
-    def to_csv(self):
-        return ','.join([
-            str(max(self.normalized_polarities)),
-            str(min(self.normalized_polarities)),
-            str(self.avg_normalized_polarity),
-        ]) + '\n'
-
-    @property
-    def to_mongo(self):
+    def to_mongo(self, post):
         return {
-            'polarities': self.polarities,
-            'normalized_polarities': self.normalized_polarities,
-            'overall_polarity': self.overall_polarity,
-            'is_pos_outlier': self.is_pos_outlier,
-            'is_neg_outlier': self.is_neg_outlier,
+            'polarities': self.get_polarities(post),
+            'normalized_polarities': self.get_normalized_polarities(post),
+            'overall_polarity': self.get_overall_polarity(post),
+            'is_pos_outlier': self.is_pos_outlier(post),
+            'is_neg_outlier': self.is_neg_outlier(post),
         }
 
-    @property
-    def is_neg_outlier(self):
-        return self.avg_normalized_polarity <= self.negative_threshold
+    def is_neg_outlier(self, post):
+        return self.get_avg_normalized_polarity(post) <= self.negative_threshold
 
-    @property
-    def is_pos_outlier(self):
-        return self.avg_normalized_polarity >= self.positive_threshold
+    def is_pos_outlier(self, post):
+        return self.get_avg_normalized_polarity(post) >= self.positive_threshold
 
 
 class SteemSentimentCommenter(object):
     def __init__(self):
         self.steem_client = SteemClient()
-        self.post_list = []
         self.mongo_steem = MongoSteem()
         self.post_cooldown = False
+        self.sentiment_analyzer = PostSentimentAnalyzer()
 
     def run(self):
         for post in self.steem_client.stream_fresh_posts():
             if datetime.datetime.now().hour != 13 and self.post_cooldown:
                 self.post_cooldown = False
-            if self.mongo_steem.is_post_valid(post):
-                sentiment = PostSentiment(post)
-                self.save_sentiment(sentiment)
-                self.handle_interaction_with_content_provider(sentiment)
+            if self.is_post_valid(post):
+                self.save_sentiment(post)
+                if self.sentiment_analyzer.is_pos_outlier(post):
+                    self.handle_interaction_with_content_provider(post)
             if datetime.datetime.now().hour == 13 and not self.post_cooldown:
                 self.write_positive_article_post()
                 self.post_cooldown = True
 
-    def save_sentiment(self, sentiment):
-        self.mongo_steem.store_post(
-            sentiment.post,
-            additional_data=sentiment.to_mongo
+    def is_post_valid(self, post):
+        return (
+            self.mongo_steem.is_post_valid(post)
+            and self.steem_client.is_post_valid(post)
         )
 
-    def handle_interaction_with_content_provider(self, post_sentiment):
-        if post_sentiment.is_pos_outlier:
-            post_sentiment.post.refresh()
-            if not self.steem_client.is_post_spam(post_sentiment.post):
-                self.steem_client.upvote_post(post_sentiment.post)
-                self.steem_client.comment_on_post(
-                    post_sentiment.post,
-                    post_sentiment.description,
-                )
-                self.post_list.append(self.get_steemit_url(post_sentiment.post))
-                print(self.get_steemit_url(post_sentiment.post))
-                print(post_sentiment.description)
-                print('posts in list: {}'.format(len(self.post_list)))
+    def save_sentiment(self, post):
+        self.mongo_steem.store_post(
+            post,
+            additional_data=self.sentiment_analyzer.to_mongo(post)
+        )
+
+    def handle_interaction_with_content_provider(self, post):
+        post.refresh()
+        self.steem_client.upvote_post(post)
+        description = self.sentiment_analyzer.get_description(post)
+        self.steem_client.comment_on_post(post, description)
 
     def get_steemit_url(self, post):
         if isinstance(post, Post):
@@ -483,7 +415,6 @@ class SteemSentimentCommenter(object):
         for reply in post.get_replies():
             if reply.author == self.steem_client.account:
                 return reply
-
 
     def is_post_verified_positive(self, post):
         sentiment_bot_comment = self.get_senti_bot_comment(post)
