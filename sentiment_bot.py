@@ -67,7 +67,7 @@ class SteemClient(object):
         while True:
             try:
                 post = next(stream)
-                if post.is_fresh_post:
+                if self.is_fresh_post(post):
                     yield post
             except PostDoesNotExist as exception:
                 print('post does not exist exception... moving on')
