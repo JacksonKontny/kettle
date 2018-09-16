@@ -114,7 +114,7 @@ class SteemClient(object):
         )
 
     def is_post_valid(self, post):
-        return not is_post_spam(post)
+        return not self.is_post_spam(post)
 
     def is_post_spam(self, post):
         replies = post.get_replies()
@@ -199,7 +199,7 @@ class MongoSteem(object):
             return not bool(self.posts.find_one({'id': post.id}, {'_id': 1}))
         except:
             print('failed to check if post is new, reinitting db and trying again')
-            self.init_collection()
+            self.init_collections()
             return self.is_post_new(post)
 
     def unsubscribe_user(self, user):
