@@ -19,7 +19,7 @@ config.read('config.ini')
 POSTING_KEY = config['steem']['posting_key']
 POSITIVE_THRESHOLD = float(config['steem']['positive_threshold'])
 NEGATIVE_THRESHOLD = float(config['steem']['negative_threshold'])
-ARTICLE_LENGTH_LOWER_LIMIT = int(config['steem'].get('aricle_length_lower_limit')) or 500
+ARTICLE_LENGTH_LOWER_LIMIT = int(config['steem'].get('article_length_lower_limit')) or 500
 EXPIRATION_MINUTES = int(config['steem'].get('expiration_minutes')) or 15
 ACCOUNT = config['steem']['account']
 POST_CATEGORIES = set([
