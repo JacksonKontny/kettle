@@ -73,7 +73,7 @@ class SteemClient(object):
                 print('post does not exist exception... moving on')
             except LangDetectException as exception:
                 try:
-                    print('language in post not understood, category: {}'.format(post.category)
+                    print('language in post not understood, category: {}'.format(post.category))
                 except:
                     print('couldnt even print out post body')
             except Exception as e:
