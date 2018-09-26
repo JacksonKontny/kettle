@@ -39,4 +39,4 @@ services:
     depends_on:
       - db
       - celery
-    command: python sentiment_bot.py
+    command: ["python", "-u", "sentiment_bot.py"]

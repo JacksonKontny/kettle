@@ -126,7 +126,7 @@ class SteemClient(object):
 
 class MongoSteem(object):
 
-    def __init__(self, host='localhost', port=27017, db_name='steem'):
+    def __init__(self, host='kettle_db_1', port=27017, db_name='steem'):
         self.host = host
         self.port = port
         self.db_name = db_name
