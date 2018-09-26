@@ -1,6 +1,5 @@
 FROM python:3.6
 ADD requirements.txt /app/requirements.txt
-ADD ./tasks/ /app/
+RUN pip install -r /app/requirements.txt
 WORKDIR /app/
-RUN pip install -r requirements.txt
-ENTRYPOINT celery -A tasks worker --concurrency=1 --loglevel=info
+ADD ./tasks/ /app/

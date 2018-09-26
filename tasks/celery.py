@@ -1,3 +1,3 @@
-from __future__ import absolute_import
 from celery import Celery
-app = Celery('test_celery',broker='amqp://admin:password@10.211.55.12:5672',backend='rpc://',include=['test_celery.tasks'])
+
+app = Celery('tasks', broker='amqp://admin:password@rabbit:5672',backend='rpc://',include=['tasks.tasks'])

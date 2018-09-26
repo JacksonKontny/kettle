@@ -10,7 +10,6 @@ services:
       - "27017:27017"
     volumes:
       - db:/data/db
-    restart: unless-stopped
 
   rabbit:
     hostname: rabbit
@@ -18,15 +17,26 @@ services:
     environment:
       - RABBITMQ_DEFAULT_USER=admin
       - RABBITMQ_DEFAULT_PASS=password
-    restart: unless-stopped
     ports:
       - "5672:5672"
 
-  worker:
-      build:
-          context: .
-          dockerfile: dockerfile
-      volumes:
-          - .:/app
-      depends_on:
-          - rabbit
+  celery:
+    build:
+      context: .
+      dockerfile: dockerfile
+    volumes:
+      - .:/app
+    depends_on:
+      - rabbit
+    command: celery worker -A tasks --concurrency=1 --loglevel=info
+
+  runner:
+    build:
+      context: .
+      dockerfile: dockerfile
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+      - celery
+    command: python sentiment_bot.py
