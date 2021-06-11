@@ -51,4 +51,4 @@ voluptuous==0.11.1
 w3lib==1.19.0
 wcwidth==0.1.7
 websocket-client==0.46.0
-websockets==4.0.1
+websockets==9.1
