@@ -19,7 +19,7 @@ ipython-genutils==0.2.0
 jedi==0.11.1
 kombu==4.1.0
 langdetect==1.0.7
-nltk==3.3
+nltk==3.6.3
 numpy==1.14.5
 parso==0.1.1
 pexpect==4.3.1
